@@ -331,6 +331,7 @@ details[open] > summary::before { content: '▾ '; }
 .suggestion-list { margin: 0 0 6px 18px; padding: 0; font-size: 13px; color: var(--text); }
 .suggestion-list li { margin-bottom: 2px; }
 .suggestion-tip { font-size: 12px; color: var(--text2); }
+.ai-badge { font-size: 10px; font-weight: 700; background: var(--violet); color: #fff; padding: 1px 6px; border-radius: 10px; letter-spacing: .04em; vertical-align: middle; }
 
 /* ──── INSIGHTS ──── */
 .insight-highlight { font-size: 13px; color: var(--text); background: var(--violet-lt); padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; }

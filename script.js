@@ -44,6 +44,9 @@ function datesOfWeek(wStart) {
   return dates;
 }
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function escapeAttr(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
 // ─────────── TABS ───────────
 function switchTab(name) {
@@ -376,10 +379,38 @@ function toggleReflectTag(tag) {
   if (reflectionTags.has(tag)) reflectionTags.delete(tag); else reflectionTags.add(tag);
   renderTagChips();
 }
-function checkNativePhrase() {
+async function checkNativePhrase() {
   const phrase = document.getElementById('reflectionPhrase').value.trim();
   const box = document.getElementById('suggestionBox');
   if (!phrase) { box.style.display = 'none'; return; }
+  const endpoint = getAiEndpoint();
+  box.style.display = 'block';
+  if (endpoint) {
+    box.innerHTML = `<div class="suggestion-title">🤖 Asking Claude…</div>`;
+    try {
+      const res = await fetch(endpoint.replace(/\/$/, '') + '/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phrase }),
+      });
+      if (!res.ok) throw new Error('AI backend returned ' + res.status);
+      const data = await res.json();
+      if (data.natives && data.natives.length) {
+        box.innerHTML = `
+          <div class="suggestion-title">🤖 A native speaker might say: <span class="ai-badge">AI</span></div>
+          <ul class="suggestion-list">${data.natives.map(n=>`<li>${n}</li>`).join('')}</ul>
+          <div class="suggestion-tip">${data.tip || ''}</div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:8px;" data-phrase="${escapeAttr(phrase)}" onclick="quickAddPhrase(this.dataset.phrase)">📌 Save to Phrases</button>`;
+        return;
+      }
+    } catch (e) {
+      // fall through to the static dictionary below
+    }
+  }
+  renderStaticSuggestion(phrase);
+}
+function renderStaticSuggestion(phrase) {
+  const box = document.getElementById('suggestionBox');
   const result = suggestNativeAlternative(phrase);
   box.style.display = 'block';
   if (result.found) {
@@ -390,8 +421,59 @@ function checkNativePhrase() {
   } else {
     box.innerHTML = `
       <div class="suggestion-title">🤔 No exact match in this app's phrase notes.</div>
-      <div class="suggestion-tip">This app can't fully judge natural phrasing on its own — save it to your Phrase Bank and check it with a teacher or native speaker.</div>
-      <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="quickAddPhrase(${JSON.stringify(phrase)})">📌 Save to Phrases</button>`;
+      <div class="suggestion-tip">This app can't fully judge natural phrasing on its own — save it to your Phrase Bank and check it with a teacher or native speaker, or set up the optional AI backend (see SETUP_AI.md) for real suggestions.</div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px;" data-phrase="${escapeAttr(phrase)}" onclick="quickAddPhrase(this.dataset.phrase)">📌 Save to Phrases</button>`;
+  }
+}
+
+// ─────────── AI BACKEND (optional) ───────────
+const AI_ENDPOINT_KEY = 'rukaLab_aiEndpoint';
+function getAiEndpoint() {
+  try { return localStorage.getItem(AI_ENDPOINT_KEY) || ''; } catch (e) { return ''; }
+}
+function saveAiEndpoint() {
+  const val = document.getElementById('aiEndpoint').value.trim().replace(/\/$/, '');
+  try { localStorage.setItem(AI_ENDPOINT_KEY, val); } catch (e) {}
+  renderAiStatus();
+}
+function renderAiStatus() {
+  const endpoint = getAiEndpoint();
+  const input = document.getElementById('aiEndpoint');
+  const status = document.getElementById('aiStatus');
+  if (!input || !status) return;
+  input.value = endpoint;
+  status.textContent = endpoint
+    ? `✓ AI backend configured (${endpoint})`
+    : 'Not configured — using built-in static suggestions.';
+}
+async function getAiAnalysis() {
+  const endpoint = getAiEndpoint();
+  const out = document.getElementById('aiAnalysisResult');
+  out.style.display = 'block';
+  if (!endpoint) {
+    out.innerHTML = `<div class="suggestion-tip">Set up your AI backend in the 🤖 AI Setup card above to use this — see <code>SETUP_AI.md</code> in the repo for steps.</div>`;
+    return;
+  }
+  const tags = {};
+  state.reflections.forEach(r => r.tags.forEach(t => { tags[t] = (tags[t]||0) + 1; }));
+  const notes = state.reflections.filter(r => r.note || r.phrase).map(r => {
+    const rec = state.recordings.find(x => x.id === r.recordingId);
+    return { date: r.date, topic: rec ? rec.topic : '', note: r.note, phrase: r.phrase };
+  });
+  out.innerHTML = `<div class="suggestion-title">🤖 Thinking…</div>`;
+  try {
+    const res = await fetch(endpoint.replace(/\/$/, '') + '/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tags, notes }),
+    });
+    if (!res.ok) throw new Error('AI backend returned ' + res.status);
+    const data = await res.json();
+    out.innerHTML = `
+      <div class="suggestion-title">🤖 AI Analysis</div>
+      <div style="white-space:pre-wrap;font-size:13px;color:var(--text);line-height:1.7;">${data.summary || 'No analysis returned.'}</div>`;
+  } catch (e) {
+    out.innerHTML = `<div class="suggestion-tip">Could not reach the AI backend. Check that the Worker URL is correct and deployed. (${e.message})</div>`;
   }
 }
 function saveReflection() {
@@ -747,6 +829,7 @@ renderDaily();
 renderPhrases();
 renderPhraseReminder();
 renderRecordings();
+renderAiStatus();
 initDrill();
 if (!state.onboarded) openTutorial();
 

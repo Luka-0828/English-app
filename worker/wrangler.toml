@@ -1,0 +1,7 @@
+name = "ruka-english-lab-ai"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+# The Anthropic API key is set as a secret, never in this file:
+#   wrangler secret put ANTHROPIC_API_KEY
+# See ../SETUP_AI.md for the full walkthrough.

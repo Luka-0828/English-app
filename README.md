@@ -1,5 +1,20 @@
 # English-app
 
+## Web app (`index.html`)
+
+A installable web app (PWA) version of the practice companion, served via
+GitHub Pages at the repo's Pages URL. Covers daily shadowing tracking, a
+phrase bank with review reminders, recording logging with post-session
+reflection, a preposition drill, and a pronoun-consistency checker — all
+stored locally in the browser (`localStorage`), with JSON export/import
+for backups.
+
+Phrase suggestions and challenge analysis work out of the box using a
+built-in static dictionary (no server, no cost). Optionally, you can wire
+up a small serverless backend to get real Claude-powered suggestions and
+analysis instead — see [`SETUP_AI.md`](SETUP_AI.md) for the (optional,
+~5 minute) setup.
+
 ## Ruka's English Practice CLI (`english_lab_cli.py`)
 
 A terminal-based training companion for C1 → C2 English practice, covering

@@ -108,6 +108,16 @@
   <!-- ── SECTION: RECORDINGS ── -->
   <section class="section" id="tab-recordings">
     <div class="card">
+      <div class="card-title"><span class="icon">🤖</span> AI Setup <span style="font-size:11px;font-weight:600;color:var(--text3);">(optional)</span></div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:10px;">Paste your deployed Worker URL to use real Claude AI for phrase suggestions and challenge analysis. Leave blank to keep using the built-in static suggestions. See <code>SETUP_AI.md</code> in the repo for setup steps.</p>
+      <div style="display:flex;gap:6px;">
+        <input type="text" id="aiEndpoint" placeholder="https://your-worker.workers.dev" style="flex:1;">
+        <button class="btn btn-secondary btn-sm" onclick="saveAiEndpoint()">Save</button>
+      </div>
+      <div id="aiStatus" style="font-size:12px;color:var(--text3);margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
       <div class="card-title"><span class="icon">📊</span> Weekly Progress</div>
       <div class="rec-progress">
         <div class="prog-label">
@@ -155,6 +165,8 @@
     <div class="card">
       <div class="card-title"><span class="icon">📊</span> Your Challenges</div>
       <div id="insightsBox"></div>
+      <button class="btn btn-secondary btn-sm" id="aiAnalysisBtn" style="margin-top:12px;" onclick="getAiAnalysis()">🤖 Get AI Analysis</button>
+      <div class="suggestion-box" id="aiAnalysisResult" style="display:none;"></div>
     </div>
 
     <div class="card">

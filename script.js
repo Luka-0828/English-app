@@ -1,8 +1,11 @@
 // ─────────── DATA ───────────
 const STORAGE_KEY = 'rukaLab_v2';
 let state = {
-  shadowing: [],  // [{date:'YYYY-MM-DD', speaker:'Emma'|'Kyla', done:true}]
-  recordings: [], // [{id, date:'YYYY-MM-DD', type:'abstract'|'economics', topic}]
+  shadowing: [],   // [{date:'YYYY-MM-DD', speaker:'Emma'|'Kyla', done:true}]
+  recordings: [],  // [{id, date:'YYYY-MM-DD', type:'abstract'|'random', topic}]
+  phrases: [],     // [{id, text, note, addedDate, lastReviewed, reviewCount}]
+  reflections: [], // [{id, recordingId, date, tags:[], note, phrase}]
+  onboarded: false,
   drillCorrect: 0,
   drillTotal: 0,
   currentQ: 0,
@@ -43,14 +46,15 @@ function datesOfWeek(wStart) {
 const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
 // ─────────── TABS ───────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  const section = document.getElementById('tab-'+name);
+  if (section) section.classList.add('active');
+  if (name === 'drill') renderDrill();
+}
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
-    if (btn.dataset.tab === 'drill') renderDrill();
-  });
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
 // ─────────── HEADER / WEEK BAR ───────────
@@ -138,29 +142,61 @@ const ABSTRACT_TOPICS = [
   'whether truth is objective','the ethics of privacy','solitude and creativity',
   'the relationship between language and thought','ambition and its costs',
   'what we owe to future generations','the limits of empathy','beauty and its value',
+  'whether happiness can be taught','the ethics of lying to protect someone','what makes work meaningful',
+  'the value of tradition versus progress','whether people can truly change','the cost of always being busy',
+  'the ethics of eating animals','what makes a good leader','whether privacy still exists online',
+  'the meaning of home','the role of luck in success','whether art needs a message',
+  'the ethics of surveillance for safety','what forgiveness really means','the value of boredom',
+  'whether competition brings out the best in people','the limits of self-improvement',
+  'what makes an apology genuine','the ethics of keeping secrets','whether money can buy time',
+  'the value of doing nothing','what makes a story worth telling','the ethics of curiosity',
+  'whether nostalgia helps or hurts us','the meaning of independence','what makes criticism useful',
+  'the ethics of ambition at any cost','whether silence is a form of communication',
+  'the value of imperfection','what makes someone trustworthy','the ethics of second chances',
+  'whether tradition should ever be questioned','the meaning of belonging','what makes a risk worth taking',
 ];
-const ECON_TOPICS = [
+const RANDOM_TOPICS = [
   'why inflation is so hard to control','the future of remote work','central bank independence',
-  'deglobalization trends since COVID','the housing affordability crisis','AI and labor displacement',
-  'currency wars and the dollar','universal basic income — feasibility','supply chain resilience strategies',
+  'deglobalization trends in recent years','the housing affordability crisis','AI and labor displacement',
+  'currency wars and exchange rates','universal basic income — feasibility','supply chain resilience strategies',
   'the fiscal cliff in aging economies','venture capital cycles','inequality and social mobility',
   'trade deficits: are they actually bad?','the gig economy\'s long-term impact','sovereign debt crises',
+  'whether space tourism is worth the cost','the future of self-driving cars','how social media changes friendships',
+  'the pros and cons of a four-day work week','whether cities are becoming too crowded',
+  'the impact of streaming on how we watch movies','why some languages are dying out',
+  'the ethics of gene editing','whether robots will replace teachers','the future of physical cash',
+  'how tourism changes local cultures','the rise of plant-based diets','why some sports become more popular than others',
+  'the impact of video games on creativity','whether remote learning works as well as classrooms',
+  'the future of grocery shopping','how weather affects mood and productivity','the psychology of procrastination',
+  'why people collect things','the impact of noise pollution in cities','whether nuclear energy deserves a comeback',
+  'the future of air travel','how fashion trends spread','the ethics of animal testing',
+  'why some cities are walkable and others are not','the impact of fast fashion on the environment',
+  'whether libraries are still relevant','the psychology of nostalgia in marketing',
+  'how misinformation spreads online','the future of public transportation','why board games are making a comeback',
+  'the impact of artificial light on sleep','whether a cashless society is inevitable',
+  'the ethics of influencer marketing to children','how cities can prepare for extreme weather',
+  'the future of office buildings after remote work','why some traditions survive and others fade',
+  'the psychology of minimalism','whether space exploration budgets are justified',
 ];
 function suggestTopic() {
   const type = document.getElementById('recType').value;
-  const list = type==='abstract' ? ABSTRACT_TOPICS : ECON_TOPICS;
+  const list = type==='abstract' ? ABSTRACT_TOPICS : RANDOM_TOPICS;
   const topic = list[Math.floor(Math.random()*list.length)];
   document.getElementById('recTopic').value = topic;
 }
+let lastLoggedRecordingId = null;
 function logRecording() {
   const type = document.getElementById('recType').value;
   const topic = document.getElementById('recTopic').value.trim();
   if (!topic) { document.getElementById('recTopic').focus(); return; }
-  state.recordings.push({id: Date.now(), date: today(), type, topic});
+  const id = Date.now();
+  state.recordings.push({id, date: today(), type, topic});
   save();
   document.getElementById('recTopic').value = '';
   renderRecordings();
   renderWeekBar();
+  lastLoggedRecordingId = id;
+  openReflectPanel(id);
 }
 function deleteRecording(id) {
   state.recordings = state.recordings.filter(r=>r.id!==id);
@@ -171,17 +207,17 @@ function renderRecordings() {
   const dates = datesOfWeek(ws);
   const weekRec = state.recordings.filter(r=>dates.includes(r.date));
   const absRecs = weekRec.filter(r=>r.type==='abstract');
-  const ecoRecs = weekRec.filter(r=>r.type==='economics');
+  const randRecs = weekRec.filter(r=>r.type==='random');
 
-  // Build 5 slots: 2 abstract, 3 economics
+  // Build 5 slots: 3 abstract, 2 random — roughly half and half
   const slots = [
-    {type:'abstract', idx:0}, {type:'abstract', idx:1},
-    {type:'economics', idx:0}, {type:'economics', idx:1}, {type:'economics', idx:2},
+    {type:'abstract', idx:0}, {type:'abstract', idx:1}, {type:'abstract', idx:2},
+    {type:'random', idx:0}, {type:'random', idx:1},
   ];
   document.getElementById('recSlots').innerHTML = slots.map((slot,i) => {
-    const recs = slot.type==='abstract' ? absRecs : ecoRecs;
+    const recs = slot.type==='abstract' ? absRecs : randRecs;
     const rec = recs[slot.idx];
-    const label = slot.type==='abstract' ? 'Abstract' : 'Economics';
+    const label = slot.type==='abstract' ? 'Abstract' : 'Random';
     const filled = !!rec;
     return `<div class="rec-slot ${slot.type} ${filled?'filled':''}">
       <span class="slot-type">${label} ${slot.idx+1}</span>
@@ -203,15 +239,267 @@ function renderRecordings() {
     hist.innerHTML = sorted.map(r=>`
       <div class="history-item">
         <span class="h-date">${r.date}</span>
-        <span class="h-type ${r.type}">${r.type==='abstract'?'ABS':'ECO'}</span>
+        <span class="h-type ${r.type}">${r.type==='abstract'?'ABS':'RND'}</span>
         <span class="h-topic">${r.topic}</span>
       </div>`).join('');
   }
+  renderInsights();
+}
+
+// ─────────── PHRASE BANK ───────────
+function addPhrase() {
+  const textEl = document.getElementById('phraseText');
+  const noteEl = document.getElementById('phraseNote');
+  const text = textEl.value.trim();
+  if (!text) { textEl.focus(); return; }
+  const note = noteEl.value.trim();
+  state.phrases.push({ id: Date.now(), text, note, addedDate: today(), lastReviewed: null, reviewCount: 0 });
+  save();
+  textEl.value = '';
+  noteEl.value = '';
+  renderPhrases();
+  renderPhraseReminder();
+}
+function deletePhrase(id) {
+  state.phrases = state.phrases.filter(p=>p.id!==id);
+  save(); renderPhrases(); renderPhraseReminder();
+}
+function markPhraseReviewed(id) {
+  const p = state.phrases.find(x=>x.id===id);
+  if (!p) return;
+  p.lastReviewed = today();
+  p.reviewCount = (p.reviewCount||0) + 1;
+  save(); renderPhrases(); renderPhraseReminder();
+}
+function quickAddPhrase(text) {
+  if (state.phrases.some(p=>p.text.toLowerCase()===text.toLowerCase())) return;
+  state.phrases.push({ id: Date.now(), text, note: '', addedDate: today(), lastReviewed: null, reviewCount: 0 });
+  save();
+  renderPhrases();
+  renderPhraseReminder();
+}
+function renderPhrases() {
+  const list = document.getElementById('phraseList');
+  if (!list) return;
+  if (!state.phrases.length) {
+    list.innerHTML = '<p class="empty"><span class="icon">📝</span><p>No phrases saved yet — add one above.</p></p>';
+    return;
+  }
+  const sorted = [...state.phrases].sort((a,b)=>b.addedDate.localeCompare(a.addedDate));
+  list.innerHTML = sorted.map(p => `
+    <div class="phrase-item">
+      <div class="phrase-main">
+        <div class="phrase-text">${p.text}</div>
+        ${p.note ? `<div class="phrase-note">${p.note}</div>` : ''}
+        <div class="phrase-meta">Added ${p.addedDate}${p.reviewCount ? ` · reviewed ${p.reviewCount}×` : ' · not reviewed yet'}</div>
+      </div>
+      <div class="phrase-actions">
+        <button class="btn btn-secondary btn-sm" onclick="markPhraseReviewed(${p.id})">✓ Reviewed</button>
+        <button class="slot-del" title="Delete" onclick="deletePhrase(${p.id})">×</button>
+      </div>
+    </div>`).join('');
+}
+function getPhraseOfDay() {
+  if (!state.phrases.length) return null;
+  return [...state.phrases].sort((a,b) => (a.lastReviewed||'').localeCompare(b.lastReviewed||''))[0];
+}
+function renderPhraseReminder() {
+  const card = document.getElementById('phraseReminderCard');
+  if (!card) return;
+  const p = getPhraseOfDay();
+  if (!p) {
+    card.innerHTML = `
+      <div class="card-title"><span class="icon">💡</span> Phrase to Review</div>
+      <p style="font-size:13px;color:var(--text2);">You haven't saved any phrases yet. Add one on the <b style="color:var(--text)">Phrases</b> tab whenever you learn something new.</p>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="switchTab('phrases')">📝 Go to Phrases</button>`;
+    return;
+  }
+  card.innerHTML = `
+    <div class="card-title"><span class="icon">💡</span> Phrase to Review</div>
+    <div class="phrase-reminder-text">${p.text}</div>
+    ${p.note ? `<div class="phrase-note" style="margin-top:4px;">${p.note}</div>` : ''}
+    <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="markPhraseReviewed(${p.id})">✓ I used this phrase today</button>`;
+}
+
+// ─────────── REFLECTION & NATIVE PHRASING ───────────
+const CHALLENGE_TAGS = ['Grammar','Vocabulary','Fluency','Pronunciation','Word retrieval','Other'];
+let reflectionTags = new Set();
+const NATIVE_ALTS = [
+  { match: /\bi think that\b/i, natives: ["I'd say that…", "It seems to me that…"], tip: "'I think that' is correct but overused — natives often vary it." },
+  { match: /\bin my opinion\b/i, natives: ["As I see it, …", "From where I stand, …"], tip: "'In my opinion' is fine, but these sound less textbook-y." },
+  { match: /\bit is difficult to\b/i, natives: ["It's tricky to…", "It's no easy task to…"], tip: "Contracted and more conversational." },
+  { match: /\ba lot of people think\b/i, natives: ["Plenty of people would argue…", "There's a common view that…"], tip: "More natural in spoken discussion." },
+  { match: /\bi want to say that\b/i, natives: ["What I'm getting at is…", "My point is…"], tip: "Sounds more like natural speech than 'I want to say'." },
+  { match: /\bvery important\b/i, natives: ["crucial", "a big deal", "pretty significant"], tip: "'Very important' is correct but plain — natives often use a single stronger word." },
+  { match: /\bi don'?t know how to explain\b/i, natives: ["It's hard to put into words, but…", "Bear with me while I think this through…"], tip: "A natural filler that buys you time." },
+  { match: /\bfor example\b/i, natives: ["say, …", "take … as an example", "case in point: …"], tip: "Good variation if you use 'for example' a lot." },
+  { match: /\bi agree with\b/i, natives: ["I'm with … on this", "That lines up with how I see it"], tip: "Less formal, more conversational agreement." },
+  { match: /\bi disagree with\b/i, natives: ["I see it differently", "I'm not so sure about that"], tip: "Softer, more natural-sounding disagreement." },
+  { match: /\bit depends on\b/i, natives: ["it really comes down to…", "it hinges on…"], tip: "More vivid than the plain 'depends on'." },
+  { match: /\bin conclusion\b/i, natives: ["all things considered, …", "at the end of the day, …"], tip: "Less like an essay, more like natural speech." },
+  { match: /\bmaybe\b/i, natives: ["it's possible that…", "there's a chance that…"], tip: "Useful when you want to sound less casual than 'maybe'." },
+  { match: /\bi am not sure\b/i, natives: ["I'm not 100% sure, but…", "I could be wrong, but…"], tip: "Natural hedging phrase before giving an opinion." },
+  { match: /\bmany people\b/i, natives: ["a good number of people", "no shortage of people"], tip: "Adds some variety to 'many people'." },
+  { match: /\bi want to talk about\b/i, natives: ["what I'd like to get into is…", "let's dig into…"], tip: "More natural way to introduce a topic when speaking." },
+  { match: /\bit is important to\b/i, natives: ["it's worth remembering that…", "what matters here is…"], tip: "Sounds less like a written essay." },
+  { match: /\bfirst of all\b/i, natives: ["to start with, …", "for one thing, …"], tip: "Natural alternative openers." },
+  { match: /\bon the other hand\b/i, natives: ["then again, …", "that said, …"], tip: "Shorter, more conversational contrast markers." },
+  { match: /\bi feel like\b/i, natives: ["my gut says…", "if I had to guess, …"], tip: "More vivid than the very common 'I feel like'." },
+];
+function suggestNativeAlternative(phrase) {
+  for (const entry of NATIVE_ALTS) {
+    if (entry.match.test(phrase)) return { found: true, natives: entry.natives, tip: entry.tip };
+  }
+  return { found: false };
+}
+function openReflectPanel(recordingId) {
+  reflectionTags = new Set();
+  const panel = document.getElementById('reflectPanel');
+  if (!panel) return;
+  panel.dataset.recordingId = recordingId;
+  document.getElementById('reflectionNote').value = '';
+  document.getElementById('reflectionPhrase').value = '';
+  document.getElementById('suggestionBox').style.display = 'none';
+  document.getElementById('suggestionBox').innerHTML = '';
+  renderTagChips();
+  panel.style.display = 'block';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function renderTagChips() {
+  const box = document.getElementById('tagChips');
+  if (!box) return;
+  box.innerHTML = CHALLENGE_TAGS.map(tag => `
+    <button type="button" class="tag-chip ${reflectionTags.has(tag)?'active':''}" onclick="toggleReflectTag('${tag}')">${tag}</button>
+  `).join('');
+}
+function toggleReflectTag(tag) {
+  if (reflectionTags.has(tag)) reflectionTags.delete(tag); else reflectionTags.add(tag);
+  renderTagChips();
+}
+function checkNativePhrase() {
+  const phrase = document.getElementById('reflectionPhrase').value.trim();
+  const box = document.getElementById('suggestionBox');
+  if (!phrase) { box.style.display = 'none'; return; }
+  const result = suggestNativeAlternative(phrase);
+  box.style.display = 'block';
+  if (result.found) {
+    box.innerHTML = `
+      <div class="suggestion-title">🗣 A native speaker might say:</div>
+      <ul class="suggestion-list">${result.natives.map(n=>`<li>${n}</li>`).join('')}</ul>
+      <div class="suggestion-tip">${result.tip}</div>`;
+  } else {
+    box.innerHTML = `
+      <div class="suggestion-title">🤔 No exact match in this app's phrase notes.</div>
+      <div class="suggestion-tip">This app can't fully judge natural phrasing on its own — save it to your Phrase Bank and check it with a teacher or native speaker.</div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:8px;" onclick="quickAddPhrase(${JSON.stringify(phrase)})">📌 Save to Phrases</button>`;
+  }
+}
+function saveReflection() {
+  const panel = document.getElementById('reflectPanel');
+  const recordingId = Number(panel.dataset.recordingId);
+  const note = document.getElementById('reflectionNote').value.trim();
+  const phrase = document.getElementById('reflectionPhrase').value.trim();
+  if (reflectionTags.size || note || phrase) {
+    state.reflections.push({
+      id: Date.now(), recordingId, date: today(),
+      tags: [...reflectionTags], note, phrase,
+    });
+    save();
+  }
+  panel.style.display = 'none';
+  renderInsights();
+}
+function skipReflection() {
+  document.getElementById('reflectPanel').style.display = 'none';
+}
+function renderInsights() {
+  const box = document.getElementById('insightsBox');
+  if (!box) return;
+  if (!state.reflections.length) {
+    box.innerHTML = '<p class="empty"><span class="icon">📊</span><p>Log a recording and add a quick reflection to see your recurring challenges here.</p></p>';
+    return;
+  }
+  const counts = {};
+  state.reflections.forEach(r => r.tags.forEach(t => { counts[t] = (counts[t]||0) + 1; }));
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const max = sorted.length ? sorted[0][1] : 1;
+  const barsHtml = sorted.length ? sorted.map(([tag,count],i) => {
+    const colors = ['var(--accent)','var(--violet)','var(--emma)','var(--kyla)','var(--amber)','var(--green)'];
+    const color = colors[i % colors.length];
+    const pct = Math.round(count/max*100);
+    return `<div class="insight-row">
+      <span class="insight-label">${tag}</span>
+      <div class="insight-bar-track"><div class="insight-bar-fill" style="width:${pct}%;background:${color};"></div></div>
+      <span class="insight-count">${count}</span>
+    </div>`;
+  }).join('') : '<p class="empty" style="padding:10px 0;">No tags recorded yet — reflections were saved as notes only.</p>';
+
+  const recentNotes = [...state.reflections].filter(r=>r.note || r.phrase).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  const notesHtml = recentNotes.length ? `
+    <div style="margin-top:14px;">
+      <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Recent notes</div>
+      ${recentNotes.map(r => {
+        const rec = state.recordings.find(x=>x.id===r.recordingId);
+        return `<div class="history-item" style="border-bottom:1px solid var(--border);">
+          <span class="h-date">${r.date}</span>
+          <span class="h-topic">${rec ? rec.topic : ''}${r.note ? ' — ' + r.note : ''}${r.phrase ? ` (unsure about: "${r.phrase}")` : ''}</span>
+        </div>`;
+      }).join('')}
+    </div>` : '';
+
+  const topTag = sorted[0] ? sorted[0][0] : null;
+  box.innerHTML = `
+    ${topTag ? `<div class="insight-highlight">Your most common challenge right now: <b>${topTag}</b> (${sorted[0][1]}×)</div>` : ''}
+    <div class="insight-bars">${barsHtml}</div>
+    ${notesHtml}`;
+}
+
+// ─────────── TUTORIAL ───────────
+const TUTORIAL_STEPS = [
+  { title: "Welcome to English Lab 👋", body: "A quick tour of how this app fits into your daily C1 → C2 practice. Tap Next to continue, or Skip if you'd rather explore on your own." },
+  { title: "📅 Daily", body: "Track today's shadowing (alternates between Emma and Kyla), see your weekly progress at a glance, and review today's featured phrase." },
+  { title: "📝 Phrases", body: "Whenever you learn a new phrase, add it here. The app reminds you of your least-reviewed phrase on the Daily tab so nothing gets forgotten." },
+  { title: "🎙 Recordings", body: "Log your practice recordings — about half abstract topics, half random topics. After logging one, jot a quick reflection on what was hard, and check how a native speaker might phrase something you weren't sure about." },
+  { title: "🎯 Drill", body: "A quick multiple-choice drill on C1 preposition collocations that trip learners up." },
+  { title: "🔍 Pronoun", body: "Paste a transcript to check whether you're consistently using 'you' or 'we'." },
+  { title: "You're all set 🎉", body: "Tap the ❓ button in the header any time to see this tour again." },
+];
+let tutorialStep = 0;
+function renderTutorialStep() {
+  const step = TUTORIAL_STEPS[tutorialStep];
+  const card = document.getElementById('tutorialCard');
+  const isLast = tutorialStep === TUTORIAL_STEPS.length - 1;
+  card.innerHTML = `
+    <h3 style="font-size:1.2rem;margin-bottom:10px;">${step.title}</h3>
+    <p style="font-size:14px;color:var(--text2);line-height:1.7;margin-bottom:16px;">${step.body}</p>
+    <div class="tutorial-dots">${TUTORIAL_STEPS.map((_,i)=>`<span class="tutorial-dot ${i===tutorialStep?'active':''}"></span>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-top:16px;">
+      <button class="btn btn-secondary btn-sm" onclick="closeTutorial()">Skip</button>
+      <div style="display:flex;gap:8px;">
+        ${tutorialStep>0 ? `<button class="btn btn-secondary btn-sm" onclick="tutorialStep--;renderTutorialStep();">← Back</button>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="${isLast ? 'closeTutorial()' : 'tutorialStep++;renderTutorialStep();'}">${isLast ? 'Done' : 'Next →'}</button>
+      </div>
+    </div>`;
+}
+function openTutorial() {
+  tutorialStep = 0;
+  renderTutorialStep();
+  document.getElementById('tutorialOverlay').style.display = 'flex';
+}
+function closeTutorial() {
+  document.getElementById('tutorialOverlay').style.display = 'none';
+  state.onboarded = true;
+  save();
 }
 
 // ─────────── BACKUP / RESTORE ───────────
 function exportState() {
-  const data = JSON.stringify({ shadowing: state.shadowing, recordings: state.recordings }, null, 2);
+  const data = JSON.stringify({
+    shadowing: state.shadowing,
+    recordings: state.recordings,
+    phrases: state.phrases,
+    reflections: state.reflections,
+  }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -239,15 +527,19 @@ function importState(event) {
       alert('This file does not look like an English Lab backup.');
       return;
     }
-    if (!confirm('This will replace your current shadowing and recording data with the contents of this file. Continue?')) {
+    if (!confirm('This will replace your current data with the contents of this file. Continue?')) {
       return;
     }
     state.shadowing = imported.shadowing;
     state.recordings = imported.recordings;
+    state.phrases = Array.isArray(imported.phrases) ? imported.phrases : [];
+    state.reflections = Array.isArray(imported.reflections) ? imported.reflections : [];
     save();
     renderWeekBar();
     renderDaily();
     renderRecordings();
+    renderPhrases();
+    renderPhraseReminder();
     alert('Import complete.');
   };
   reader.readAsText(file);
@@ -452,8 +744,11 @@ function renderCheckerResult({analyzed, dominant, totalYou, totalWe, shifts, hig
 load();
 renderWeekBar();
 renderDaily();
+renderPhrases();
+renderPhraseReminder();
 renderRecordings();
 initDrill();
+if (!state.onboarded) openTutorial();
 
 // ─────────── PWA SERVICE WORKER ───────────
 if ('serviceWorker' in navigator) {

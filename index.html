@@ -22,18 +22,22 @@
 <div class="app">
   <!-- HEADER -->
   <div class="header">
-    <div class="header-top">
-      <div class="logo">
-        <h1>English Lab</h1>
-        <span class="tag">C1 → C2</span>
+    <div class="header-hero">
+      <button class="help-btn" onclick="openTutorial()" title="Show tutorial">❓</button>
+      <div class="header-top">
+        <div class="logo">
+          <h1>English Lab</h1>
+          <span class="tag">C1 → C2</span>
+        </div>
       </div>
+      <div class="week-bar" id="weekBar"></div>
     </div>
-    <div class="week-bar" id="weekBar"></div>
   </div>
 
   <!-- TABS -->
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="daily">📅 Daily</button>
+    <button class="tab-btn" data-tab="phrases">📝 Phrases</button>
     <button class="tab-btn" data-tab="recordings">🎙 Recordings</button>
     <button class="tab-btn" data-tab="drill">🎯 Drill</button>
     <button class="tab-btn" data-tab="check">🔍 Pronoun</button>
@@ -56,6 +60,8 @@
         ✓ Mark today's shadowing as done
       </button>
     </div>
+
+    <div class="card" id="phraseReminderCard"></div>
 
     <div class="card">
       <div class="card-title"><span class="icon">📆</span> This Week</div>
@@ -81,6 +87,24 @@
     </div>
   </section>
 
+  <!-- ── SECTION: PHRASES ── -->
+  <section class="section" id="tab-phrases">
+    <div class="card">
+      <div class="card-title"><span class="icon">➕</span> Add a New Phrase</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Learned something new? Save it here — the app will remind you to use it.</p>
+      <div class="log-form">
+        <input type="text" id="phraseText" placeholder="e.g. &quot;that really resonates with me&quot;">
+        <input type="text" id="phraseNote" placeholder="meaning / note (optional)">
+        <button class="btn btn-primary" onclick="addPhrase()">Add Phrase</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📚</span> Your Phrases</div>
+      <div id="phraseList"></div>
+    </div>
+  </section>
+
   <!-- ── SECTION: RECORDINGS ── -->
   <section class="section" id="tab-recordings">
     <div class="card">
@@ -101,7 +125,7 @@
         <div class="row">
           <select id="recType">
             <option value="abstract">Abstract</option>
-            <option value="economics">Economics</option>
+            <option value="random">Random</option>
           </select>
           <div style="flex:2;display:flex;gap:6px;align-items:center;">
             <input type="text" id="recTopic" placeholder="Topic (e.g. free will, inflation)" style="flex:1;">
@@ -110,6 +134,27 @@
         </div>
         <button class="btn btn-primary" onclick="logRecording()">Log Recording</button>
       </div>
+    </div>
+
+    <div class="card" id="reflectPanel" style="display:none;">
+      <div class="card-title"><span class="icon">🪞</span> Quick Reflection</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:10px;">What was tricky this time? (optional — helps track your recurring challenges)</p>
+      <div class="tag-chip-row" id="tagChips"></div>
+      <input type="text" id="reflectionNote" placeholder="any notes? (optional)" style="margin-top:10px;">
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <input type="text" id="reflectionPhrase" placeholder="a phrase you weren't sure about (optional)" style="flex:1;">
+        <button class="btn btn-secondary btn-sm" onclick="checkNativePhrase()">🔍 Check</button>
+      </div>
+      <div class="suggestion-box" id="suggestionBox" style="display:none;"></div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button class="btn btn-primary" onclick="saveReflection()">Save</button>
+        <button class="btn btn-secondary" onclick="skipReflection()">Skip</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Your Challenges</div>
+      <div id="insightsBox"></div>
     </div>
 
     <div class="card">
@@ -176,6 +221,11 @@
     </div>
     <div class="checker-result" id="checkerResult" style="display:none;"></div>
   </section>
+</div>
+
+<!-- ── TUTORIAL OVERLAY ── -->
+<div class="tutorial-overlay" id="tutorialOverlay" style="display:none;">
+  <div class="tutorial-card" id="tutorialCard"></div>
 </div>
 
 <script src="script.js"></script>

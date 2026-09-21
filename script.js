@@ -209,6 +209,50 @@ function renderRecordings() {
   }
 }
 
+// ─────────── BACKUP / RESTORE ───────────
+function exportState() {
+  const data = JSON.stringify({ shadowing: state.shadowing, recordings: state.recordings }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ruka-english-lab-${today()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function importState(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    event.target.value = '';
+    let imported;
+    try {
+      imported = JSON.parse(reader.result);
+    } catch (e) {
+      alert('Could not read this file — it is not valid JSON.');
+      return;
+    }
+    if (!imported || !Array.isArray(imported.shadowing) || !Array.isArray(imported.recordings)) {
+      alert('This file does not look like an English Lab backup.');
+      return;
+    }
+    if (!confirm('This will replace your current shadowing and recording data with the contents of this file. Continue?')) {
+      return;
+    }
+    state.shadowing = imported.shadowing;
+    state.recordings = imported.recordings;
+    save();
+    renderWeekBar();
+    renderDaily();
+    renderRecordings();
+    alert('Import complete.');
+  };
+  reader.readAsText(file);
+}
+
 // ─────────── PREPOSITION DRILL ───────────
 const QUESTIONS = [
   // Ruka's 3 target prepositions

@@ -118,6 +118,16 @@
         <div id="recHistory" style="margin-top:10px;"></div>
       </details>
     </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">💾</span> Backup / Restore</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Save all your data (shadowing + recordings) to a JSON file, or restore it from one.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="exportState()">⬇️ Export JSON</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">⬆️ Import JSON</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none;" onchange="importState(event)">
+    </div>
   </section>
 
   <!-- ── SECTION: DRILL ── -->

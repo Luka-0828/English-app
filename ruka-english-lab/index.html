@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ruka's English Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- APP -->
+<div class="app">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <h1>English Lab</h1>
+        <span class="tag">C1 → C2</span>
+      </div>
+    </div>
+    <div class="week-bar" id="weekBar"></div>
+  </div>
+
+  <!-- TABS -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="daily">📅 Daily</button>
+    <button class="tab-btn" data-tab="recordings">🎙 Recordings</button>
+    <button class="tab-btn" data-tab="drill">🎯 Drill</button>
+    <button class="tab-btn" data-tab="check">🔍 Pronoun</button>
+  </nav>
+
+  <!-- ── SECTION: DAILY ── -->
+  <section class="section active" id="tab-daily">
+    <div class="card">
+      <div class="card-title"><span class="icon">🎧</span> Today's Shadowing</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Who did you shadow today? (alternates automatically)</p>
+      <div class="speaker-toggle">
+        <button class="speaker-btn emma" id="emmaBtn" onclick="selectSpeaker('Emma')">
+          🎤 Emma
+        </button>
+        <button class="speaker-btn kyla" id="kylaBtn" onclick="selectSpeaker('Kyla')">
+          🎤 Kyla
+        </button>
+      </div>
+      <button class="done-btn" id="shadowDoneBtn" onclick="markShadowingDone()">
+        ✓ Mark today's shadowing as done
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📆</span> This Week</div>
+      <div class="week-grid" id="weekGrid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📌</span> Focus Points</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="background:var(--green-lt);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;margin-top:2px;">PREP</span>
+          <span style="font-size:13px;color:var(--text2);">confident <b style="color:var(--text)">about</b> · optimistic <b style="color:var(--text)">about</b> · open-minded <b style="color:var(--text)">to</b></span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="background:var(--amber-lt);color:var(--amber);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;margin-top:2px;">PRONOUN</span>
+          <span style="font-size:13px;color:var(--text2);">Decide: <b style="color:var(--text)">you</b> or <b style="color:var(--text)">we</b> — before you start speaking.</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <span style="background:var(--violet-lt);color:var(--violet);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;margin-top:2px;">SOUND</span>
+          <span style="font-size:13px;color:var(--text2);">Emma shadowing is your only pronunciation mirror right now — keep it daily.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SECTION: RECORDINGS ── -->
+  <section class="section" id="tab-recordings">
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Weekly Progress</div>
+      <div class="rec-progress">
+        <div class="prog-label">
+          <span id="recProgressLabel">0 / 5 recordings this week</span>
+          <span id="recProgressPct" style="color:var(--accent);font-weight:700;">0%</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" id="recProgFill" style="width:0%"></div></div>
+      </div>
+      <div class="rec-slots" id="recSlots" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">➕</span> Log a Recording</div>
+      <div class="log-form">
+        <div class="row">
+          <select id="recType">
+            <option value="abstract">Abstract</option>
+            <option value="economics">Economics</option>
+          </select>
+          <div style="flex:2;display:flex;gap:6px;align-items:center;">
+            <input type="text" id="recTopic" placeholder="Topic (e.g. free will, inflation)" style="flex:1;">
+            <button class="suggest-btn" onclick="suggestTopic()">🎲 suggest</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="logRecording()">Log Recording</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <details>
+        <summary>Recording history</summary>
+        <div id="recHistory" style="margin-top:10px;"></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ── SECTION: DRILL ── -->
+  <section class="section" id="tab-drill">
+    <div class="drill-header">
+      <div>
+        <h2 style="font-size:1.1rem;">Preposition Drill</h2>
+        <p style="font-size:12px;color:var(--text3);margin-top:2px;">C1 collocations — the ones that trip everyone up</p>
+      </div>
+      <div class="drill-score">Session: <span id="drillCorrect">0</span>/<span id="drillTotal">0</span></div>
+    </div>
+
+    <div class="question-card" id="questionCard">
+      <div class="q-num" id="qNum">Question 1 of 20</div>
+      <div class="q-sentence" id="qSentence"></div>
+      <div class="options" id="qOptions"></div>
+      <div class="explanation" id="qExplanation"></div>
+    </div>
+
+    <div class="drill-nav">
+      <div class="q-progress" id="qProgress"></div>
+      <button class="btn btn-secondary btn-sm" onclick="nextQuestion()" id="nextBtn" style="display:none;">Next →</button>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-secondary btn-sm" onclick="restartDrill()">↺ Restart</button>
+      <button class="btn btn-secondary btn-sm" onclick="shuffleDrill()">🔀 Shuffle</button>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title" style="font-size:.95rem;">📖 Quick Reference</div>
+      <div id="refTable" style="font-size:13px;display:flex;flex-direction:column;gap:6px;"></div>
+    </div>
+  </section>
+
+  <!-- ── SECTION: PRONOUN CHECKER ── -->
+  <section class="section" id="tab-check">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔍</span> Pronoun Consistency Checker</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Paste a recording transcript or speaking notes. I'll flag <mark class="you-mark">you</mark> vs <mark class="we-mark">we</mark> shifts.</p>
+      <textarea class="checker-textarea" id="checkerInput" placeholder="Paste your text here...&#10;&#10;Example: 'When you face a difficult situation, you have to think clearly. We also need to consider the long-term effects...'"></textarea>
+      <div class="checker-actions">
+        <button class="btn btn-primary" onclick="runCheck()">Analyze</button>
+        <button class="btn btn-secondary" onclick="clearCheck()">Clear</button>
+      </div>
+    </div>
+    <div class="checker-result" id="checkerResult" style="display:none;"></div>
+  </section>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
